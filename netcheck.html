@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Проверка сети — Gatika</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; background: #0B1410; color: #DCEDE4; margin: 0; padding: 1.5rem 1rem 3rem; }
+  h1 { font-size: 20px; color: #3EE08F; margin: 0 0 .5rem; }
+  p { margin: .5rem 0; color: #A9C6B7; }
+  ul { list-style: none; padding: 0; margin: 1rem 0; }
+  li { padding: .6rem .75rem; border-radius: .5rem; background: #12231B; margin: .5rem 0; word-break: break-all; }
+  .ok { color: #3EE08F; }
+  .bad { color: #FF7B72; }
+  .wait { color: #E3B341; }
+  code { font-size: 12px; color: #8FB3A0; }
+  button { margin-top: 1rem; width: 100%; padding: .9rem; font-size: 16px; border: 0; border-radius: .6rem; background: #3EE08F; color: #07100C; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Проверка сети</h1>
+<p>Страница проверяет, какие адреса доступны с этого телефона. Ничего не оплачивает.</p>
+<ul id="list"></ul>
+<button id="again">Проверить ещё раз</button>
+<p><code id="ua"></code></p>
+
+<script>
+var targets = [
+  { name: 'Сайт (gatika.ru)', url: 'https://gatika.ru/health.txt', cors: true },
+  { name: 'API воркера (workers.dev)', url: 'https://gatika-access.goldklonleks.workers.dev/health', cors: true },
+  { name: 'Переход к оплате (workers.dev/go)', url: 'https://gatika-access.goldklonleks.workers.dev/go?code=ZZZZZZZZ', cors: false },
+  { name: 'ЮKassa (yoomoney.ru)', url: 'https://yoomoney.ru/favicon.ico', cors: false },
+  { name: 'ЮKassa API (api.yookassa.ru)', url: 'https://api.yookassa.ru/', cors: false },
+  { name: 'GitHub (github.com)', url: 'https://github.com/favicon.ico', cors: false },
+  { name: 'Cloudflare (cloudflare.com)', url: 'https://cloudflare.com/favicon.ico', cors: false }
+];
+
+document.getElementById('ua').textContent = navigator.userAgent;
+
+function line(item) {
+  var li = document.createElement('li');
+  li.id = 'row-' + item.id;
+  li.innerHTML = '<div>' + item.name + '</div><div class="wait">проверяю…</div>';
+  document.getElementById('list').appendChild(li);
+  return li;
+}
+
+function timer(ms) {
+  var c = new AbortController();
+  var id = setTimeout(function () { c.abort(); }, ms);
+  return { signal: c.signal, stop: function () { clearTimeout(id); } };
+}
+
+async function check(item, idx) {
+  var li = line({ id: idx, name: item.name });
+  var t0 = Date.now();
+  var t = timer(9000);
+  try {
+    var r = await fetch(item.url, {
+      mode: item.cors ? 'cors' : 'no-cors',
+      cache: 'no-store',
+      signal: t.signal
+    });
+    var ms = Date.now() - t0;
+    var detail = item.cors ? 'HTTP ' + r.status : 'ответ получен';
+    li.innerHTML = '<div>' + item.name + '</div><div class="ok">✓ ' + detail + ', ' + ms + ' мс</div>';
+  } catch (e) {
+    var ms2 = Date.now() - t0;
+    var why = (e && e.name === 'AbortError') ? 'таймаут 9 с' : ((e && e.message) || String(e));
+    li.innerHTML = '<div>' + item.name + '</div><div class="bad">✗ ' + why + ', ' + ms2 + ' мс</div>';
+  } finally {
+    t.stop();
+  }
+}
+
+async function run() {
+  document.getElementById('list').innerHTML = '';
+  for (var i = 0; i < targets.length; i++) {
+    await check(targets[i], i);
+  }
+}
+
+document.getElementById('again').addEventListener('click', run);
+run();
+</script>
+</body>
+</html>
