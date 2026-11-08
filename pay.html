@@ -99,16 +99,57 @@
   function show(text) { error.textContent = text || ''; }
   function normalize() { return input.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 
+  // Запрет покупки после возврата проверяем заранее, по коду: иначе человек
+  // заполняет форму и узнаёт о блокировке только после нажатия.
+  var blockedUntil = 0;
+  var checkSeq = 0;
+
+  function blockMessage(until) {
+    var d = new Date(until);
+    var date = isNaN(d.getTime()) ? '' : d.toLocaleDateString('ru-RU');
+    return 'Покупка для этого устройства недоступна до ' + date + ': ранее был оформлен возврат.';
+  }
+
+  function checkCode(code) {
+    if (code.length !== 8) { blockedUntil = 0; button.disabled = false; return; }
+    var seq = ++checkSeq;
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 8000);
+    fetch('https://api.gatika.ru:8443/v1/code?code=' + encodeURIComponent(code), {
+      cache: 'no-store',
+      signal: ctrl.signal
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (seq !== checkSeq) return;
+        blockedUntil = Number(d.blockedUntil) || 0;
+        if (blockedUntil > Date.now()) {
+          show(blockMessage(blockedUntil));
+          button.disabled = true;
+        } else {
+          blockedUntil = 0;
+          button.disabled = false;
+        }
+      })
+      .catch(function () { /* окончательную проверку делает /go */ })
+      .then(function () { clearTimeout(timer); });
+  }
+
   input.addEventListener('input', function () {
     var clean = normalize();
     if (input.value !== clean) input.value = clean;
     show('');
+    if (clean.length === 8) checkCode(clean);
+    else { blockedUntil = 0; button.disabled = false; }
   });
+
+  if (input.value.length === 8) checkCode(input.value);
 
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
     show('');
     var code = normalize();
+    if (blockedUntil > Date.now()) { show(blockMessage(blockedUntil)); return; }
     if (code.length !== 8) { show('Введите код из 8 символов с экрана «ДОСТУП».'); input.focus(); return; }
     if (!consent.checked) { show('Нужно согласие с условиями.'); return; }
 
