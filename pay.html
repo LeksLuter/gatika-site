@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Оплата расширенного доступа — Gatika</title>
+<meta name="description" content="Оплата расширенного доступа Gatika: потоки 3 и 4, 150 ₽ за 30 дней. Оплата на сайте через платёжный сервис ЮKassa.">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/" aria-label="Gatika">
+    <img class="brand-icon" src="assets/icon.png" alt="">
+    <span>GATIKA</span>
+  </a>
+  <nav>
+    <a href="/">Главная</a>
+    <a href="/price.html">Прайс-лист</a>
+    <a href="/legal/terms.html">Соглашение</a>
+  </nav>
+</header>
+
+<main>
+  <section class="section">
+    <span class="eyebrow">оплата на сайте</span>
+    <h1>Расширенный доступ</h1>
+    <p class="lead">Потоки 3 и 4 на 30 дней. Оплата проходит на стороне платёжного сервиса ЮKassa, сайт не получает и не хранит данные банковской карты.</p>
+
+    <div class="checkout">
+      <article class="plan featured">
+        <span class="badge">витрина услуги</span>
+        <div class="plan-head">
+          <h3>Gatika — расширенный доступ</h3>
+          <p>цифровая услуга для приложения Gatika на Android</p>
+        </div>
+        <div class="price">150 ₽ <small>за 30 дней</small></div>
+        <ul class="checks">
+          <li>Потоки 3 и 4 на оплаченный период</li>
+          <li>Без рекламы в стандартном режиме</li>
+          <li>Активация на устройстве по коду после подтверждения оплаты</li>
+          <li>Без автоматического продления</li>
+        </ul>
+        <p class="fine">Продавец — Сервис Gatika. Доступ привязан к коду устройства, который показывает приложение. Возврат — по условиям <a href="/legal/terms.html">пользовательского соглашения</a>.</p>
+      </article>
+
+      <article class="plan">
+        <h3>Оплатить</h3>
+        <form id="pay" novalidate>
+          <div class="field">
+            <label for="code">Код устройства</label>
+            <input id="code" name="code" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" placeholder="ABCD2345" aria-describedby="code-hint">
+            <p id="code-hint" class="hint">Восемь символов с экрана «ДОСТУП» в приложении.</p>
+          </div>
+          <label class="consent">
+            <input id="consent" type="checkbox">
+            <span>Я принимаю <a href="/legal/terms.html">пользовательское соглашение</a> и <a href="/legal/privacy.html">политику конфиденциальности</a>.</span>
+          </label>
+          <div id="error" class="error" role="alert"></div>
+          <button id="submit" class="btn block" type="submit">Перейти к оплате</button>
+          <p class="hint">Откроется страница ЮKassa. После оплаты вы вернётесь в приложение, доступ включится автоматически.</p>
+        </form>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="foot-brand">
+    <span>GATIKA</span>
+    <p>Шлюз распределения потоков интернета для Android.</p>
+  </div>
+  <div class="foot-links">
+    <a href="/legal/terms.html">Пользовательское соглашение</a>
+    <a href="/legal/privacy.html">Политика конфиденциальности</a>
+  </div>
+  <div class="foot-legal">
+    <p>Исполнитель — Сервис Gatika. Сведения об исполнителе содержатся в платёжном сервисе и в чеке.</p>
+    <p>Поддержка: <a href="https://boosty.to/knopka_web3">страница проекта на Boosty</a>.</p>
+    <p>© 2026 Gatika</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var form = document.getElementById('pay');
+  var input = document.getElementById('code');
+  var consent = document.getElementById('consent');
+  var button = document.getElementById('submit');
+  var error = document.getElementById('error');
+  // Один ключ на загрузку страницы: повтор после сбоя сети не создаёт второй счёт.
+  var requestId = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'web-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  var fromLink = new URLSearchParams(location.search).get('code');
+  if (fromLink) input.value = fromLink.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+
+  function show(text) { error.textContent = text || ''; }
+  function normalize() { return input.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+
+  input.addEventListener('input', function () {
+    var clean = normalize();
+    if (input.value !== clean) input.value = clean;
+    show('');
+  });
+
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    show('');
+    var code = normalize();
+    if (code.length !== 8) { show('Введите код из 8 символов с экрана «ДОСТУП».'); input.focus(); return; }
+    if (!consent.checked) { show('Нужно согласие с условиями.'); return; }
+
+    button.disabled = true;
+    button.textContent = 'Создаю счёт…';
+    try {
+      var response = await fetch('https://gatika-access.goldklonleks.workers.dev/v1/webpay', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: code, requestId: requestId })
+      });
+      var data = await response.json().catch(function () { return {}; });
+      if (data.confirmationUrl) { location.href = data.confirmationUrl; return; }
+      if (response.status === 404) show('Такой код не найден. Проверьте код на экране «ДОСТУП».');
+      else if (response.status === 503) show('Оплата временно недоступна. Попробуйте позже.');
+      else show(data.description || 'Не удалось создать счёт. Попробуйте ещё раз.');
+    } catch (e) {
+      show('Нет связи с сайтом. Проверьте интернет и попробуйте ещё раз.');
+    }
+    button.disabled = false;
+    button.textContent = 'Перейти к оплате';
+  });
+})();
+</script>
+</body>
+</html>
