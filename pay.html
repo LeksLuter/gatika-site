@@ -114,11 +114,17 @@
 
     button.disabled = true;
     button.textContent = 'Создаю счёт…';
+    // Ответ банка иногда задерживается на мобильной сети. Без таймаута страница
+    // висит на «Создаю счёт…» вечно, хотя счёт уже создан. Повтор безопасен:
+    // requestId тот же, ЮKassa вернёт тот же счёт, а не создаст второй.
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 25000);
     try {
       var response = await fetch('https://gatika-access.goldklonleks.workers.dev/v1/webpay', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code: code, requestId: requestId })
+        body: JSON.stringify({ code: code, requestId: requestId }),
+        signal: controller.signal
       });
       var data = await response.json().catch(function () { return {}; });
       if (data.confirmationUrl) { location.href = data.confirmationUrl; return; }
@@ -126,7 +132,10 @@
       else if (response.status === 503) show('Оплата временно недоступна. Попробуйте позже.');
       else show(data.description || 'Не удалось создать счёт. Попробуйте ещё раз.');
     } catch (e) {
-      show('Нет связи с сайтом. Проверьте интернет и попробуйте ещё раз.');
+      if (e && e.name === 'AbortError') show('Ответ задерживается. Нажмите кнопку ещё раз — повтор не создаст второй счёт.');
+      else show('Нет связи с сайтом. Проверьте интернет и попробуйте ещё раз.');
+    } finally {
+      clearTimeout(timer);
     }
     button.disabled = false;
     button.textContent = 'Перейти к оплате';
