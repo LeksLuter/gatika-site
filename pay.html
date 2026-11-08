@@ -116,7 +116,7 @@
     button.textContent = 'Перехожу к оплате…';
     // Обычная навигация вместо fetch: воркер отвечает 302 на ЮKassa. На
     // мобильной сети это надёжнее — не нужно ждать тело ответа.
-    location.href = 'https://gatika-access.goldklonleks.workers.dev/go?code='
+    location.href = 'https://api.gatika.ru:8443/go?code='
       + encodeURIComponent(code) + '&r=' + encodeURIComponent(requestId);
     setTimeout(function () {
       button.disabled = false;
