@@ -276,4 +276,5 @@ footer {
 @media (max-width: 560px) {
   .grid.four { grid-template-columns: 1fr; }
   .flow-row { grid-template-columns: 74px 1fr auto; }
+  .dl-meta { grid-template-columns: 1fr 1fr; row-gap: 12px; }
 }
