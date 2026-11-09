@@ -140,9 +140,9 @@
           <div><span>Версия</span><b>1.2.10</b></div>
           <div><span>Размер</span><b>35,5 МБ</b></div>
           <div><span>Android</span><b>8.0+</b></div>
+          <div><span>Скачали</span><b data-count="arm64">—</b></div>
         </div>
         <a class="btn block" data-arch="arm64" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-arm64.apk">Скачать APK</a>
-        <p class="dl-count" data-count="arm64" hidden>Скачали <b>0</b> раз</p>
       </article>
       <article class="dl-card">
         <h3>Для старых устройств</h3>
@@ -151,9 +151,9 @@
           <div><span>Версия</span><b>1.2.10</b></div>
           <div><span>Размер</span><b>10,2 МБ</b></div>
           <div><span>Android</span><b>8.0+</b></div>
+          <div><span>Скачали</span><b data-count="armv7">—</b></div>
         </div>
         <a class="btn ghost block" data-arch="armv7" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-armv7.apk">Скачать APK</a>
-        <p class="dl-count" data-count="armv7" hidden>Скачали <b>0</b> раз</p>
       </article>
     </div>
     <ul class="checks dl-facts">
@@ -199,10 +199,7 @@
 
   function setCount(arch, n) {
     var el = document.querySelector('[data-count="' + arch + '"]');
-    var num = el ? el.querySelector('b') : null;
-    if (!num) return;
-    num.textContent = n.toLocaleString('ru-RU');
-    el.hidden = false;
+    if (el) el.textContent = n.toLocaleString('ru-RU') + ' раз';
   }
 
   function load(i) {
