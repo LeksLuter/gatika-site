@@ -131,7 +131,6 @@
   <section id="download" class="section">
     <h2>Скачать Gatika</h2>
     <p class="sub">Актуальная версия — 1.2.10. Если сомневаетесь — берите первую сборку: она подходит почти всем новым устройствам.</p>
-    <p class="dl-count" id="dl-count" hidden>Скачали <b>0</b> раз</p>
     <div class="dl-grid">
       <article class="dl-card featured">
         <span class="badge">для большинства</span>
@@ -143,6 +142,7 @@
           <div><span>Android</span><b>8.0+</b></div>
         </div>
         <a class="btn block" data-arch="arm64" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-arm64.apk">Скачать APK</a>
+        <p class="dl-count" data-count="arm64" hidden>Скачали <b>0</b> раз</p>
       </article>
       <article class="dl-card">
         <h3>Для старых устройств</h3>
@@ -153,6 +153,7 @@
           <div><span>Android</span><b>8.0+</b></div>
         </div>
         <a class="btn ghost block" data-arch="armv7" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-armv7.apk">Скачать APK</a>
+        <p class="dl-count" data-count="armv7" hidden>Скачали <b>0</b> раз</p>
       </article>
     </div>
     <ul class="checks dl-facts">
@@ -190,29 +191,45 @@
 </footer>
 <script>
 (function () {
-  var API = 'https://api.gatika.ru:8443';
-  var line = document.getElementById('dl-count');
-  var num = line ? line.querySelector('b') : null;
-  var total = 0;
+  // Основной хост гейта и резерв на Cloudflare. Из домашней сети основной
+  // может не открыться (nat loopback), поэтому счёт показываем с того, кто
+  // ответил первым, а клик отмечаем на обоих.
+  var HOSTS = ['https://api.gatika.ru:8443', 'https://gatika-access.goldklonleks.workers.dev'];
+  var counts = { arm64: 0, armv7: 0 };
 
-  function show(n) {
-    total = n;
-    if (!line || !num) return;
+  function setCount(arch, n) {
+    var el = document.querySelector('[data-count="' + arch + '"]');
+    var num = el ? el.querySelector('b') : null;
+    if (!num) return;
     num.textContent = n.toLocaleString('ru-RU');
-    line.hidden = false;
+    el.hidden = false;
   }
 
-  fetch(API + '/v1/downloads', { cache: 'no-store' })
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) { if (d && typeof d.total === 'number') show(d.total); })
-    .catch(function () {});
+  function load(i) {
+    if (i >= HOSTS.length) return;
+    fetch(HOSTS[i] + '/v1/downloads', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || typeof d.arm64 !== 'number' || typeof d.armv7 !== 'number') throw new Error('empty');
+        counts.arm64 = d.arm64;
+        counts.armv7 = d.armv7;
+        setCount('arm64', d.arm64);
+        setCount('armv7', d.armv7);
+      })
+      .catch(function () { load(i + 1); });
+  }
+
+  load(0);
 
   Array.prototype.forEach.call(document.querySelectorAll('#download [data-arch]'), function (a) {
     a.addEventListener('click', function () {
-      var body = JSON.stringify({ arch: a.getAttribute('data-arch') });
-      if (navigator.sendBeacon) navigator.sendBeacon(API + '/v1/downloads', body);
-      else fetch(API + '/v1/downloads', { method: 'POST', body: body, keepalive: true, mode: 'no-cors' }).catch(function () {});
-      if (total) show(total + 1);
+      var arch = a.getAttribute('data-arch');
+      var body = JSON.stringify({ arch: arch });
+      HOSTS.forEach(function (host) {
+        if (navigator.sendBeacon) navigator.sendBeacon(host + '/v1/downloads', body);
+        else fetch(host + '/v1/downloads', { method: 'POST', body: body, keepalive: true, mode: 'no-cors' }).catch(function () {});
+      });
+      if (counts[arch]) setCount(arch, ++counts[arch]);
     });
   });
 })();
