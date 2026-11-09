@@ -234,7 +234,6 @@ h1 {
 .dl-meta div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .dl-meta span { color: var(--dim); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
 .dl-meta b { font-size: 16px; white-space: nowrap; }
-.dl-meta b[data-count] { color: var(--accent); }
 
 .dl-card .btn.block { margin-top: auto; }
 .dl-facts { margin-top: 22px; }
