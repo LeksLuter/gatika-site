@@ -130,7 +130,8 @@
 
   <section id="download" class="section">
     <h2>Скачать Gatika</h2>
-    <p class="sub">Актуальная версия — 1.2.6. Если сомневаетесь — берите первую сборку: она подходит почти всем новым устройствам.</p>
+    <p class="sub">Актуальная версия — 1.2.10. Если сомневаетесь — берите первую сборку: она подходит почти всем новым устройствам.</p>
+    <p class="dl-count" id="dl-count" hidden>Скачали <b>0</b> раз</p>
     <div class="dl-grid">
       <article class="dl-card featured">
         <span class="badge">для большинства</span>
@@ -141,7 +142,7 @@
           <div><span>Размер</span><b>35,5 МБ</b></div>
           <div><span>Android</span><b>8.0+</b></div>
         </div>
-        <a class="btn block" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-arm64.apk">Скачать APK</a>
+        <a class="btn block" data-arch="arm64" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-arm64.apk">Скачать APK</a>
       </article>
       <article class="dl-card">
         <h3>Для старых устройств</h3>
@@ -151,7 +152,7 @@
           <div><span>Размер</span><b>10,2 МБ</b></div>
           <div><span>Android</span><b>8.0+</b></div>
         </div>
-        <a class="btn ghost block" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-armv7.apk">Скачать APK</a>
+        <a class="btn ghost block" data-arch="armv7" href="https://github.com/LeksLuter/Gatika/releases/download/v1.2.10/gatika-1.2.10-armv7.apk">Скачать APK</a>
       </article>
     </div>
     <ul class="checks dl-facts">
@@ -166,7 +167,7 @@
     <h2>Частые вопросы</h2>
     <details><summary>Нужен ли аккаунт?</summary><p>Нет. Доступ привязан к устройству и его коду, который показывает приложение.</p></details>
     <details><summary>Что будет после семи дней?</summary><p>Потоки 3 и 4 отключатся, потоки 1 и 2 продолжат работать бесплатно. Продлить расширенный доступ можно кнопкой оплаты на экране «Доступ».</p></details>
-    <details><summary>Можно ли вернуть деньги?</summary><p>Да, запрос принимается в течение 3 календарных дней с момента оплаты. Из суммы возврата вычитается стоимость использованных дней.</p></details>
+    <details><summary>Можно ли вернуть деньги?</summary><p>Да, запрос принимается в течение 3 календарных дней с момента оплаты и возвращается полная сумма. Повторная покупка для этого устройства будет доступна через 30 дней после возврата.</p></details>
     <details><summary>Где проходят платежи?</summary><p>На сайте сервиса, на стороне платёжного сервиса ЮKassa. Приложение и сайт не получают и не хранят данные банковских карт.</p></details>
     <details><summary>Что обрабатывается из данных?</summary><p>Код устройства (необратимый хеш), версия приложения и сведения о платеже. История посещённых сайтов не сохраняется. Подробнее — в <a href="legal/privacy.html">политике конфиденциальности</a>.</p></details>
   </section>
@@ -187,5 +188,34 @@
     <p>© 2026 Gatika</p>
   </div>
 </footer>
+<script>
+(function () {
+  var API = 'https://api.gatika.ru:8443';
+  var line = document.getElementById('dl-count');
+  var num = line ? line.querySelector('b') : null;
+  var total = 0;
+
+  function show(n) {
+    total = n;
+    if (!line || !num) return;
+    num.textContent = n.toLocaleString('ru-RU');
+    line.hidden = false;
+  }
+
+  fetch(API + '/v1/downloads', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && typeof d.total === 'number') show(d.total); })
+    .catch(function () {});
+
+  Array.prototype.forEach.call(document.querySelectorAll('#download [data-arch]'), function (a) {
+    a.addEventListener('click', function () {
+      var body = JSON.stringify({ arch: a.getAttribute('data-arch') });
+      if (navigator.sendBeacon) navigator.sendBeacon(API + '/v1/downloads', body);
+      else fetch(API + '/v1/downloads', { method: 'POST', body: body, keepalive: true, mode: 'no-cors' }).catch(function () {});
+      if (total) show(total + 1);
+    });
+  });
+})();
+</script>
 </body>
 </html>

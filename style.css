@@ -207,6 +207,8 @@ h1 {
 }
 
 .dl-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; }
+.dl-count { color: var(--accent); font-size: 14px; margin: -14px 0 22px; }
+.dl-count b { font-weight: 600; }
 
 .dl-card {
   position: relative;
