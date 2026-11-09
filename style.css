@@ -207,8 +207,6 @@ h1 {
 }
 
 .dl-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; }
-.dl-count { color: var(--accent); font-size: 13px; margin: 12px 0 0; text-align: center; }
-.dl-count b { font-weight: 600; }
 
 .dl-card {
   position: relative;
@@ -226,16 +224,17 @@ h1 {
 
 .dl-meta {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   padding: 14px 0;
   border-top: 1px solid rgba(62, 224, 143, 0.1);
   border-bottom: 1px solid rgba(62, 224, 143, 0.1);
   margin-bottom: 20px;
 }
-.dl-meta div { display: flex; flex-direction: column; gap: 2px; }
-.dl-meta span { color: var(--dim); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
-.dl-meta b { font-size: 16px; }
+.dl-meta div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dl-meta span { color: var(--dim); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+.dl-meta b { font-size: 16px; white-space: nowrap; }
+.dl-meta b[data-count] { color: var(--accent); }
 
 .dl-card .btn.block { margin-top: auto; }
 .dl-facts { margin-top: 22px; }
