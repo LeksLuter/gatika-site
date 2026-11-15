@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Задания и бонусные минуты — Gatika</title>
+<meta name="description" content="Задания Gatika: выполните действие у партнёра и получите бонусные минуты браузера. Минуты начисляются автоматически после подтверждения.">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<style>
+  :root {
+    --bg: #07100C;
+    --panel: #0C1A14;
+    --line: #173026;
+    --text: #E7F5EE;
+    --dim: #8FA79C;
+    --accent: #35E07D;
+    --warn: #F2C14E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  header.top {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid var(--line);
+  }
+  header.top img { width: 28px; height: 28px; }
+  header.top b { letter-spacing: 1px; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px 48px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 26px 0 8px; }
+  p { margin: 8px 0; }
+  .muted { color: var(--dim); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px;
+  }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .num { font-size: 30px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .big {
+    display: block; text-align: center; text-decoration: none;
+    background: var(--accent); color: #04120A; font-weight: 700;
+    padding: 14px; border-radius: 12px; margin: 12px 0;
+  }
+  ol, ul { padding-left: 20px; margin: 8px 0; }
+  li { margin: 6px 0; }
+  iframe { width: 100%; min-height: 70vh; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+  .note { border-left: 3px solid var(--warn); padding: 8px 12px; color: var(--dim); }
+  a { color: var(--accent); }
+  footer { color: var(--dim); font-size: 12px; text-align: center; padding: 24px 16px 40px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <img src="assets/icon.png" alt="">
+  <b>GATIKA</b>
+</header>
+
+<main>
+  <h1>Задания и бонусные минуты</h1>
+  <p class="muted">
+    Бонусные минуты открывают расширенные потоки в браузере Gatika. Их можно получить
+    за действия у партнёров — установку приложения, опрос, оформление подписки.
+  </p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <div class="num" id="balance">—</div>
+        <div class="muted">минут доступно</div>
+      </div>
+      <div>
+        <div class="num" id="cap">60</div>
+        <div class="muted">минут в день, до 90 впрок</div>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:12px">
+      Минуты идут только в браузере Gatika: остальные приложения остаются в бесплатном режиме.
+    </p>
+  </div>
+
+  <h2>Задания</h2>
+  <div id="wallBox">
+    <p class="muted">Загружаем список заданий…</p>
+  </div>
+  <a class="big" id="wallLink" href="#" hidden>Открыть список заданий</a>
+
+  <h2>Как это работает</h2>
+  <ol>
+    <li>Открываете задание и выполняете его у партнёра — в браузере или в его приложении.</li>
+    <li>Партнёр присылает подтверждение на наш сервер. Обычно это занимает от минуты до нескольких часов.</li>
+    <li>Минуты начисляются автоматически: в браузере появится новое значение остатка.</li>
+  </ol>
+
+  <h2>Честные правила</h2>
+  <ul>
+    <li>Награда начисляется один раз за задание и только после подтверждения партнёра.</li>
+    <li>Если партнёр отменил задание (возврат, отказ), минуты списываются, если ещё не потрачены.</li>
+    <li>Накрутка, повторные регистрации и автоматизация приводят к отказу в начислении.</li>
+    <li>Дневной лимит — 60 минут, накопить можно не больше 90.</li>
+  </ul>
+
+  <p class="note">
+    Задания выполняются на стороне партнёров, и их условия определяют партнёры, а не Gatika.
+    Мы не просим деньги за задания и не просим пароли.
+  </p>
+
+  <footer>
+    <a href="/">Gatika</a> ·
+    <a href="legal/privacy.html">Конфиденциальность</a> ·
+    <a href="legal/terms.html">Условия</a>
+  </footer>
+</main>
+
+<script>
+  // Адрес стены заданий из кабинета рекламной сети (Apps & placements → Integration).
+  // Пусто — значит стена ещё не подключена: показываем пояснение вместо iframe.
+  const WALL_URL = '';
+
+  const params = new URLSearchParams(location.search);
+  const uid = params.get('uid') || '';
+
+  // Баланс тянем со своего API; пока его нет — показываем прочерк, а не выдуманное число.
+  async function loadState() {
+    if (!uid) return;
+    try {
+      const r = await fetch('https://gatika-access.goldklonleks.workers.dev/v1/bonus/state?uid=' + encodeURIComponent(uid));
+      if (!r.ok) return;
+      const s = await r.json();
+      if (typeof s.remainingMin === 'number') {
+        document.getElementById('balance').textContent = String(s.remainingMin);
+      }
+      if (typeof s.dailyCapMin === 'number') {
+        document.getElementById('cap').textContent = String(s.dailyCapMin);
+      }
+    } catch (_) { /* офлайн — оставляем прочерк */ }
+  }
+
+  function renderWall() {
+    const box = document.getElementById('wallBox');
+    const link = document.getElementById('wallLink');
+    if (!WALL_URL) {
+      box.innerHTML = '<p class="muted">Список заданий подключается. Загляните позже — минуты за задания уже работают в браузере.</p>';
+      return;
+    }
+    const target = WALL_URL + (WALL_URL.includes('?') ? '&' : '?') + 'user_id=' + encodeURIComponent(uid);
+    link.href = target;
+    link.hidden = false;
+    const f = document.createElement('iframe');
+    f.src = target;
+    f.setAttribute('loading', 'lazy');
+    f.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+    box.innerHTML = '';
+    box.appendChild(f);
+  }
+
+  renderWall();
+  loadState();
+</script>
+</body>
+</html>
