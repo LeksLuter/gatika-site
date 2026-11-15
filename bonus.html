@@ -118,7 +118,7 @@
 <script>
   // Адрес стены заданий из кабинета рекламной сети (Apps & placements → Integration).
   // Пусто — значит стена ещё не подключена: показываем пояснение вместо iframe.
-  const WALL_URL = '';
+  const WALL_URL = 'https://offerwall.gg/wall/4b9fcdef59f5f191c9c4800caa027e0c';
 
   const params = new URLSearchParams(location.search);
   const uid = params.get('uid') || '';
@@ -146,7 +146,7 @@
       box.innerHTML = '<p class="muted">Список заданий подключается. Загляните позже — минуты за задания уже работают в браузере.</p>';
       return;
     }
-    const target = WALL_URL + (WALL_URL.includes('?') ? '&' : '?') + 'user_id=' + encodeURIComponent(uid);
+    const target = WALL_URL + (WALL_URL.includes('?') ? '&' : '?') + 'userId=' + encodeURIComponent(uid);
     link.href = target;
     link.hidden = false;
     const f = document.createElement('iframe');
