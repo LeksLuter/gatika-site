@@ -128,20 +128,30 @@
   const params = new URLSearchParams(location.search);
   const uid = params.get('uid') || '';
 
+  // Основной API — сервер шлюза; воркер на workers.dev только резерв: базы у
+  // них независимые, и воркер покажет не то число, что начислено постбэком.
+  const API = 'https://api.gatika.ru:8443/v1/bonus/state';
+  const API_FALLBACK = 'https://gatika-access.goldklonleks.workers.dev/v1/bonus/state';
+
   // Баланс тянем со своего API; пока его нет — показываем прочерк, а не выдуманное число.
   async function loadState() {
     if (!uid) return;
+    const url = API + '?uid=' + encodeURIComponent(uid);
+    const state = await getJson(url) || await getJson(API_FALLBACK + '?uid=' + encodeURIComponent(uid));
+    if (!state) return;
+    if (typeof state.remainingMin === 'number') {
+      document.getElementById('balance').textContent = String(state.remainingMin);
+    }
+    if (typeof state.dailyCapMin === 'number') {
+      document.getElementById('cap').textContent = String(state.dailyCapMin);
+    }
+  }
+
+  async function getJson(url) {
     try {
-      const r = await fetch('https://gatika-access.goldklonleks.workers.dev/v1/bonus/state?uid=' + encodeURIComponent(uid));
-      if (!r.ok) return;
-      const s = await r.json();
-      if (typeof s.remainingMin === 'number') {
-        document.getElementById('balance').textContent = String(s.remainingMin);
-      }
-      if (typeof s.dailyCapMin === 'number') {
-        document.getElementById('cap').textContent = String(s.dailyCapMin);
-      }
-    } catch (_) { /* офлайн — оставляем прочерк */ }
+      const r = await fetch(url, { cache: 'no-store' });
+      return r.ok ? await r.json() : null;
+    } catch (_) { return null; /* офлайн — оставляем прочерк */ }
   }
 
   function renderWall() {
