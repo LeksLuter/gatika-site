@@ -83,10 +83,15 @@
   </div>
 
   <h2>Задания</h2>
-  <div id="wallBox">
-    <p class="muted">Загружаем список заданий…</p>
-  </div>
+  <p class="muted" id="wallHint">
+    Список заданий открывается в новой вкладке: так партнёр видит ваш прогресс и
+    может подтвердить выполнение.
+  </p>
   <a class="big" id="wallLink" href="#" hidden>Открыть список заданий</a>
+  <p class="muted" id="wallEmpty" hidden>
+    Список заданий подключается. Загляните позже — минуты за задания уже
+    работают в браузере.
+  </p>
 
   <h2>Как это работает</h2>
   <ol>
@@ -140,21 +145,20 @@
   }
 
   function renderWall() {
-    const box = document.getElementById('wallBox');
     const link = document.getElementById('wallLink');
-    if (!WALL_URL) {
-      box.innerHTML = '<p class="muted">Список заданий подключается. Загляните позже — минуты за задания уже работают в браузере.</p>';
+    const hint = document.getElementById('wallHint');
+    const empty = document.getElementById('wallEmpty');
+    if (!WALL_URL || !uid) {
+      // Без uid партнёр не сможет связать выполненное задание с устройством.
+      hint.hidden = true;
+      empty.hidden = false;
       return;
     }
     const target = WALL_URL + (WALL_URL.includes('?') ? '&' : '?') + 'userId=' + encodeURIComponent(uid);
     link.href = target;
     link.hidden = false;
-    const f = document.createElement('iframe');
-    f.src = target;
-    f.setAttribute('loading', 'lazy');
-    f.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
-    box.innerHTML = '';
-    box.appendChild(f);
+    hint.hidden = false;
+    empty.hidden = true;
   }
 
   renderWall();
