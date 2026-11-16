@@ -248,14 +248,24 @@
     return a;
   }
 
-  // Клик разрешаем на сервере: он записывает клик у партнёра и отдаёт адрес
-  // рекламодателя. Если сервер не смог — открываем ссылку площадки как есть.
+  // Клик разрешаем на сервере: он проходит два шага на домене партнёра (тот
+  // записывает клик) и отдаёт адрес рекламодателя. Дальше открывает телефон —
+  // со своим IP, иначе партнёр увидит чужую страну и отменит награду.
   async function openOffer(id) {
+    const note = document.getElementById('boardNote');
+    note.hidden = false;
+    note.textContent = 'Открываем задание…';
     const url = API_CLICK + '?uid=' + encodeURIComponent(uid) + '&id=' + encodeURIComponent(id);
     const data = await getJson(url);
-    const target = (data && (data.url || data.fallback)) || '';
-    if (!target) return;
-    location.href = target;
+    if (!data || !data.url) {
+      // Ссылку площадки здесь не подставляем: её домен из РФ не открывается, и
+      // человек увидел бы таймаут вместо объяснения.
+      note.textContent = data && data.via === 'blocked'
+        ? 'Партнёр не пустил по этой ссылке. Попробуйте другое задание — остальные работают.'
+        : 'Не удалось открыть задание. Попробуйте ещё раз через минуту.';
+      return;
+    }
+    location.href = data.url;
   }
 
   function showWallLink() {
