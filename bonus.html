@@ -47,7 +47,20 @@
   }
   ol, ul { padding-left: 20px; margin: 8px 0; }
   li { margin: 6px 0; }
-  iframe { width: 100%; min-height: 70vh; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+  .offers { display: grid; gap: 8px; }
+  .offer {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px; text-decoration: none; color: var(--text);
+  }
+  .offer:active { border-color: var(--accent); }
+  .offer img { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; flex: 0 0 auto; }
+  .offer .text { flex: 1 1 auto; min-width: 0; }
+  .offer .title { font-size: 14px; line-height: 1.25; }
+  .offer .kind { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+  .offer .pay { flex: 0 0 auto; text-align: right; }
+  .offer .pay b { color: var(--accent); font-size: 15px; }
+  .offer .pay span { display: block; font-size: 11px; color: var(--dim); }
   .note { border-left: 3px solid var(--warn); padding: 8px 12px; color: var(--dim); }
   a { color: var(--accent); }
   footer { color: var(--dim); font-size: 12px; text-align: center; padding: 24px 16px 40px; }
@@ -83,15 +96,14 @@
   </div>
 
   <h2>Задания</h2>
-  <p class="muted" id="wallHint">
-    Список заданий открывается в новой вкладке: так партнёр видит ваш прогресс и
-    может подтвердить выполнение.
+  <p class="muted" id="boardHint">Загружаем список…</p>
+  <div class="offers" id="board"></div>
+  <p class="muted" id="boardEmpty" hidden>
+    Заданий для вашего устройства сейчас нет. Загляните позже — новые появляются
+    каждый день.
   </p>
-  <a class="big" id="wallLink" href="#" hidden>Открыть список заданий</a>
-  <p class="muted" id="wallEmpty" hidden>
-    Список заданий подключается. Загляните позже — минуты за задания уже
-    работают в браузере.
-  </p>
+  <a class="big" id="wallLink" href="#" hidden>Открыть полный список у партнёра</a>
+  <p class="note" id="boardNote" hidden></p>
 
   <h2>Как это работает</h2>
   <ol>
@@ -154,24 +166,106 @@
     } catch (_) { return null; /* офлайн — оставляем прочерк */ }
   }
 
-  function renderWall() {
-    const link = document.getElementById('wallLink');
-    const hint = document.getElementById('wallHint');
-    const empty = document.getElementById('wallEmpty');
-    if (!WALL_URL || !uid) {
-      // Без uid партнёр не сможет связать выполненное задание с устройством.
+  // Доска заданий. Список берём со своего API: он ходит к площадке серверным
+  // секретом и отдаёт уже наши поля. Чужую стену не грузим — её домен из РФ не
+  // открывается, а её вёрстка и куки нам не нужны.
+  const API_OFFERS = 'https://api.gatika.ru:8443/v1/offers';
+  const API_CLICK = 'https://api.gatika.ru:8443/v1/offer/click';
+
+  const KIND = {
+    survey: 'опрос', surveys: 'опрос',
+    game: 'игра', games: 'игра',
+    app: 'приложение', apps: 'приложение', cpi: 'приложение',
+    signup: 'регистрация', registration: 'регистрация',
+    purchase: 'покупка', shopping: 'покупка',
+    video: 'видео',
+  };
+
+  async function loadBoard() {
+    const hint = document.getElementById('boardHint');
+    const board = document.getElementById('board');
+    const empty = document.getElementById('boardEmpty');
+    const note = document.getElementById('boardNote');
+    if (!uid) {
       hint.hidden = true;
       empty.hidden = false;
       return;
     }
-    const target = WALL_URL + (WALL_URL.includes('?') ? '&' : '?') + 'userId=' + encodeURIComponent(uid);
-    link.href = target;
-    link.hidden = false;
-    hint.hidden = false;
-    empty.hidden = true;
+    const data = await getJson(API_OFFERS + '?uid=' + encodeURIComponent(uid));
+    if (!data) {
+      // Каталог недоступен (нет ключа площадки или сервер не отвечает) — честно
+      // говорим об этом и оставляем ссылку на полный список, если она есть.
+      hint.textContent = 'Список заданий временно недоступен. Минуты, полученные раньше, остаются в силе.';
+      showWallLink();
+      return;
+    }
+    if (!data.offers || !data.offers.length) {
+      hint.hidden = true;
+      empty.hidden = false;
+      return;
+    }
+    hint.hidden = true;
+    for (const offer of data.offers) {
+      board.appendChild(offerCard(offer));
+    }
+    note.hidden = false;
+    note.textContent = 'Награда начисляется после подтверждения партнёра — обычно от минуты до нескольких часов. ' +
+      'Задание открывается на прямом соединении: так партнёр видит вашу страну и не отменяет награду.';
   }
 
-  renderWall();
+  function offerCard(offer) {
+    const a = document.createElement('a');
+    a.className = 'offer';
+    a.href = '#';
+    a.addEventListener('click', (event) => {
+      event.preventDefault();
+      openOffer(offer.id);
+    });
+    if (offer.icon) {
+      const img = document.createElement('img');
+      img.src = offer.icon;
+      img.alt = '';
+      img.loading = 'lazy';
+      a.appendChild(img);
+    }
+    const text = document.createElement('div');
+    text.className = 'text';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = offer.title;
+    const kind = document.createElement('div');
+    kind.className = 'kind';
+    kind.textContent = KIND[offer.category] || 'задание';
+    text.append(title, kind);
+    const pay = document.createElement('div');
+    pay.className = 'pay';
+    const b = document.createElement('b');
+    b.textContent = '+' + offer.minutes;
+    const span = document.createElement('span');
+    span.textContent = 'минут';
+    pay.append(b, span);
+    a.append(text, pay);
+    return a;
+  }
+
+  // Клик разрешаем на сервере: он записывает клик у партнёра и отдаёт адрес
+  // рекламодателя. Если сервер не смог — открываем ссылку площадки как есть.
+  async function openOffer(id) {
+    const url = API_CLICK + '?uid=' + encodeURIComponent(uid) + '&id=' + encodeURIComponent(id);
+    const data = await getJson(url);
+    const target = (data && (data.url || data.fallback)) || '';
+    if (!target) return;
+    location.href = target;
+  }
+
+  function showWallLink() {
+    const link = document.getElementById('wallLink');
+    if (!WALL_URL || !uid) return;
+    link.href = WALL_URL + (WALL_URL.includes('?') ? '&' : '?') + 'userId=' + encodeURIComponent(uid);
+    link.hidden = false;
+  }
+
+  loadBoard();
   loadState();
 </script>
 </body>
