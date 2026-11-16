@@ -169,11 +169,15 @@
     }
   }
 
-  async function getJson(url) {
+  async function getJson(url, timeoutMs) {
+    // Без таймаута зависший запрос оставлял человека ждать бесконечно.
+    const stop = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    const controller = new AbortController();
     try {
-      const r = await fetch(url, { cache: 'no-store' });
+      const r = await fetch(url, { cache: 'no-store', signal: controller.signal });
       return r.ok ? await r.json() : null;
-    } catch (_) { return null; /* офлайн — оставляем прочерк */ }
+    } catch (_) { return null; /* офлайн или таймаут — оставляем прочерк */ }
+    finally { if (stop) clearTimeout(stop); }
   }
 
   // Доска заданий. Список берём со своего API: он ходит к площадке серверным
@@ -299,8 +303,14 @@
     status.textContent = 'Открываем задание…';
     card.after(status);
 
+    // Если партнёр думает долго, человек должен видеть, что процесс идёт.
+    const slow = setTimeout(() => {
+      status.textContent = 'Партнёр отвечает не сразу — ещё пара секунд…';
+    }, 3500);
+
     const url = API_CLICK + '?uid=' + encodeURIComponent(uid) + '&id=' + encodeURIComponent(offer.id);
-    const data = await getJson(url);
+    const data = await getJson(url, 20000);
+    clearTimeout(slow);
     if (!data) {
       status.textContent = 'Не удалось открыть задание. Попробуйте через минуту.';
       status.classList.add('warn');
@@ -344,15 +354,45 @@
     }, 4000);
   }
 
-  // HEAD без CORS-режима: ответ не читаем, важен сам факт ответа. Если хост
-  // заблокирован, запрос повиснет — тогда таймаут и «недоступно».
-  function reachable(url) {
-    return new Promise((resolve) => {
-      const stop = setTimeout(() => resolve(false), 6000);
+  // Вердикты по лендинг-хостам: один и тот же хост встречается у десятков
+  // заданий, поэтому рабочий не проверяем 10 минут, а мёртвый — сутки.
+  const HOST_KEY = 'gatika.hosts';
+  const HOST_OK_MS = 10 * 60 * 1000;
+  const HOST_BAD_MS = 24 * 3600 * 1000;
+
+  function hostVerdict(host) {
+    try {
+      const all = JSON.parse(localStorage.getItem(HOST_KEY) || '{}');
+      const entry = all[host];
+      if (!entry) return null;
+      const ttl = entry.ok ? HOST_OK_MS : HOST_BAD_MS;
+      return Date.now() - entry.at < ttl ? entry.ok : null;
+    } catch (_) { return null; }
+  }
+
+  function setHostVerdict(host, ok) {
+    try {
+      const all = JSON.parse(localStorage.getItem(HOST_KEY) || '{}');
+      all[host] = { ok, at: Date.now() };
+      localStorage.setItem(HOST_KEY, JSON.stringify(all));
+    } catch (_) { /* приватный режим — просто проверим в следующий раз */ }
+  }
+
+  // HEAD без CORS-режима: ответ не читаем, важен сам факт ответа. 4 секунды —
+  // компромисс: рабочий хост отвечает быстрее, а ждать дольше человек не станет.
+  async function reachable(url) {
+    let host = '';
+    try { host = new URL(url).host; } catch (_) { return true; }
+    const known = hostVerdict(host);
+    if (known !== null) return known;
+    const ok = await new Promise((resolve) => {
+      const stop = setTimeout(() => resolve(false), 4000);
       fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' })
         .then(() => { clearTimeout(stop); resolve(true); })
         .catch(() => { clearTimeout(stop); resolve(false); });
     });
+    setHostVerdict(host, ok);
+    return ok;
   }
 
   function showWallLink() {
