@@ -265,7 +265,26 @@
         : 'Не удалось открыть задание. Попробуйте ещё раз через минуту.';
       return;
     }
+    // Проверяем, отвечает ли лендинг вообще. Часть зарубежных хостов у мобильных
+    // операторов РФ просто висит: человек уходил бы в пустую страницу и ждал
+    // таймаут браузера, а клик у партнёра уже засчитан.
+    note.textContent = 'Проверяем задание…';
+    if (!(await reachable(data.url))) {
+      note.textContent = 'Это задание не открывается из вашей сети. Выберите другое.';
+      return;
+    }
     location.href = data.url;
+  }
+
+  // HEAD без CORS-режима: ответ не читаем, важен сам факт ответа. Если хост
+  // заблокирован, запрос повиснет — тогда таймаут и «недоступно».
+  function reachable(url) {
+    return new Promise((resolve) => {
+      const stop = setTimeout(() => resolve(false), 6000);
+      fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' })
+        .then(() => { clearTimeout(stop); resolve(true); })
+        .catch(() => { clearTimeout(stop); resolve(false); });
+    });
   }
 
   function showWallLink() {
