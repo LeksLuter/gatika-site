@@ -61,6 +61,13 @@
   .offer .pay { flex: 0 0 auto; text-align: right; }
   .offer .pay b { color: var(--accent); font-size: 15px; }
   .offer .pay span { display: block; font-size: 11px; color: var(--dim); }
+  /* Ответ на нажатие — там же, где нажали: под карточкой, а не в конце страницы. */
+  .offer-status {
+    grid-column: 1 / -1;
+    font-size: 12px; line-height: 1.35;
+    padding: 2px 4px 6px; color: var(--dim);
+  }
+  .offer-status.warn { color: var(--warn); }
   .note { border-left: 3px solid var(--warn); padding: 8px 12px; color: var(--dim); }
   a { color: var(--accent); }
   footer { color: var(--dim); font-size: 12px; text-align: center; padding: 24px 16px 40px; }
@@ -96,6 +103,10 @@
   </div>
 
   <h2>Задания</h2>
+  <p class="note" id="boardNote">
+    Награда начисляется после подтверждения партнёра — обычно от минуты до
+    нескольких часов. Если задание не засчиталось, напишите нам.
+  </p>
   <p class="muted" id="boardHint">Загружаем список…</p>
   <div class="offers" id="board"></div>
   <p class="muted" id="boardEmpty" hidden>
@@ -103,7 +114,6 @@
     каждый день.
   </p>
   <a class="big" id="wallLink" href="#" hidden>Открыть полный список у партнёра</a>
-  <p class="note" id="boardNote" hidden></p>
 
   <h2>Как это работает</h2>
   <ol>
@@ -181,11 +191,33 @@
     video: 'видео',
   };
 
+  // Скрытые задания. Если лендинг из сети пользователя не открывается, карточку
+  // убираем и запоминаем на неделю: сеть может смениться, поэтому не навсегда.
+  const HIDE_KEY = 'gatika.hidden.' + (uid || 'anon');
+  const HIDE_MS = 7 * 24 * 3600 * 1000;
+
+  function hiddenIds() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(HIDE_KEY) || '{}');
+      const now = Date.now();
+      const alive = {};
+      for (const [id, until] of Object.entries(raw)) if (until > now) alive[id] = until;
+      return alive;
+    } catch (_) { return {}; }
+  }
+
+  function hideOffer(id) {
+    try {
+      const all = hiddenIds();
+      all[id] = Date.now() + HIDE_MS;
+      localStorage.setItem(HIDE_KEY, JSON.stringify(all));
+    } catch (_) { /* приватный режим: не запомним, но карточку всё равно уберём */ }
+  }
+
   async function loadBoard() {
     const hint = document.getElementById('boardHint');
     const board = document.getElementById('board');
     const empty = document.getElementById('boardEmpty');
-    const note = document.getElementById('boardNote');
     if (!uid) {
       hint.hidden = true;
       empty.hidden = false;
@@ -204,13 +236,18 @@
       empty.hidden = false;
       return;
     }
+    const hidden = hiddenIds();
+    const shown = data.offers.filter((offer) => !hidden[offer.id]);
+    if (!shown.length) {
+      hint.hidden = true;
+      empty.hidden = false;
+      empty.textContent = 'Задания, которые не открывались из вашей сети, скрыты. Новые появятся позже.';
+      return;
+    }
     hint.hidden = true;
-    for (const offer of data.offers) {
+    for (const offer of shown) {
       board.appendChild(offerCard(offer));
     }
-    note.hidden = false;
-    note.textContent = 'Награда начисляется после подтверждения партнёра — обычно от минуты до нескольких часов. ' +
-      'Если задание не засчиталось, напишите нам: отмена со стороны партнёра видна в его отчёте.';
   }
 
   function offerCard(offer) {
@@ -219,7 +256,7 @@
     a.href = '#';
     a.addEventListener('click', (event) => {
       event.preventDefault();
-      openOffer(offer.id);
+      openOffer(offer, a);
     });
     if (offer.icon) {
       const img = document.createElement('img');
@@ -251,29 +288,60 @@
   // Клик разрешаем на сервере: он проходит два шага на домене партнёра (тот
   // записывает клик) и отдаёт адрес рекламодателя. Дальше открывает телефон —
   // со своим IP, иначе партнёр увидит чужую страну и отменит награду.
-  async function openOffer(id) {
-    const note = document.getElementById('boardNote');
-    note.hidden = false;
-    note.textContent = 'Открываем задание…';
-    const url = API_CLICK + '?uid=' + encodeURIComponent(uid) + '&id=' + encodeURIComponent(id);
+  async function openOffer(offer, card) {
+    if (card.dataset.busy === '1') return;
+    card.dataset.busy = '1';
+    card.style.opacity = '0.6';
+
+    // Ответ появляется под самой карточкой: внизу страницы его никто не увидит.
+    const status = document.createElement('div');
+    status.className = 'offer-status';
+    status.textContent = 'Открываем задание…';
+    card.after(status);
+
+    const url = API_CLICK + '?uid=' + encodeURIComponent(uid) + '&id=' + encodeURIComponent(offer.id);
     const data = await getJson(url);
-    if (!data || !data.url) {
-      // Ссылку площадки здесь не подставляем: её домен из РФ не открывается, и
-      // человек увидел бы таймаут вместо объяснения.
-      note.textContent = data && data.via === 'blocked'
-        ? 'Партнёр не пустил по этой ссылке. Попробуйте другое задание — остальные работают.'
-        : 'Не удалось открыть задание. Попробуйте ещё раз через минуту.';
+    if (!data) {
+      status.textContent = 'Не удалось открыть задание. Попробуйте через минуту.';
+      status.classList.add('warn');
+      card.style.opacity = '1';
+      delete card.dataset.busy;
       return;
     }
-    // Проверяем, отвечает ли лендинг вообще. Часть зарубежных хостов у мобильных
-    // операторов РФ просто висит: человек уходил бы в пустую страницу и ждал
-    // таймаут браузера, а клик у партнёра уже засчитан.
-    note.textContent = 'Проверяем задание…';
+    if (!data.url) {
+      // Ссылку площадки не подставляем: её домен из РФ не открывается.
+      dropOffer(offer, card, status, data.via === 'blocked'
+        ? 'Партнёр не пустил по этой ссылке — больше её не показываем.'
+        : 'Не удалось открыть задание. Попробуйте через минуту.');
+      return;
+    }
+    // Проверяем, отвечает ли лендинг вообще: часть зарубежных хостов у мобильных
+    // операторов РФ просто висит — человек ждал бы пустой экран.
+    status.textContent = 'Проверяем, открывается ли задание…';
     if (!(await reachable(data.url))) {
-      note.textContent = 'Это задание не открывается из вашей сети. Выберите другое.';
+      dropOffer(offer, card, status, 'Задание не открывается из вашей сети — больше не показываем.');
       return;
     }
+    status.textContent = 'Открываем…';
     location.href = data.url;
+  }
+
+  // Убрать карточку с объяснением и запомнить, чтобы она не появлялась снова.
+  function dropOffer(offer, card, status, text) {
+    hideOffer(offer.id);
+    status.classList.add('warn');
+    status.textContent = text;
+    card.style.opacity = '0.4';
+    setTimeout(() => {
+      status.remove();
+      card.remove();
+      const board = document.getElementById('board');
+      if (board && !board.children.length) {
+        const empty = document.getElementById('boardEmpty');
+        empty.hidden = false;
+        empty.textContent = 'Задания, которые не открывались из вашей сети, скрыты. Новые появятся позже.';
+      }
+    }, 4000);
   }
 
   // HEAD без CORS-режима: ответ не читаем, важен сам факт ответа. Если хост
