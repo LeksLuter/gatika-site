@@ -256,14 +256,19 @@
   (function () {
     var REF_KEY = 'gatika_ref';
     var CODE = /^[0-9a-f]{64}$/;
+    var SESSION_KEY = 'gatika_ref_session';
     var m = /[?&]ref=([0-9a-fA-F]{64})/.exec(location.search);
     var code = m ? m[1].toLowerCase() : null;
     if (code) {
-      try { localStorage.setItem(REF_KEY, code); } catch (e) {}
+      // Код запоминаем надолго (пригодится кнопке на других страницах), а
+      // показ блока — только на эту сессию: иначе «Тебя пригласил друг» висело
+      // бы у человека при каждом обычном заходе на сайт.
+      try { localStorage.setItem(REF_KEY, code); sessionStorage.setItem(SESSION_KEY, code); } catch (e) {}
     } else {
-      try { code = localStorage.getItem(REF_KEY); } catch (e) {}
+      try { code = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(REF_KEY); } catch (e) {}
     }
     if (!code || !CODE.test(code)) return;
+    try { if (!sessionStorage.getItem(SESSION_KEY)) return; } catch (e) {}
 
     var box = document.getElementById('ref-invite');
     if (!box) return;
