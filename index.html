@@ -255,9 +255,11 @@
   // его при первом запуске (§14).
   (function () {
     var REF_KEY = 'gatika_ref';
-    var CODE = /^[0-9a-f]{64}$/;
+    // Код друга в ссылке — короткий (`897238GJ`, как на экране «ДОСТУП»);
+    // старые ссылки с полным uid (64 hex) тоже продолжаем понимать.
+    var CODE = /^([0-9a-f]{64}|[0-9A-Za-z]{8})$/;
     var SESSION_KEY = 'gatika_ref_session';
-    var m = /[?&]ref=([0-9a-fA-F]{64})/.exec(location.search);
+    var m = /[?&]ref=([0-9a-fA-F]{64}|[0-9A-Za-z]{8})/.exec(location.search);
     var code = m ? m[1].toLowerCase() : null;
     if (code) {
       // Код запоминаем надолго (пригодится кнопке на других страницах), а
@@ -273,7 +275,9 @@
     var box = document.getElementById('ref-invite');
     if (!box) return;
     box.hidden = false;
-    document.getElementById('ref-code').textContent = code.slice(0, 8) + '…' + code.slice(-4);
+    // Короткий код показываем целиком: его диктуют голосом. Длинный — сокращаем.
+    document.getElementById('ref-code').textContent =
+      code.length === 8 ? code.toUpperCase() : code.slice(0, 8) + '…' + code.slice(-4);
 
     var open = document.getElementById('ref-open');
     open.href = 'gatika://ref/' + code;
