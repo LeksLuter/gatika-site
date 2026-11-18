@@ -8,6 +8,7 @@
   --dim: #8fa69a;
   --accent: #3ee08f;
   --accent-2: #1d7a4e;
+  --radius: 18px;
 }
 
 * { box-sizing: border-box; }
@@ -277,3 +278,27 @@ footer {
   .flow-row { grid-template-columns: 74px 1fr auto; }
   .dl-meta { grid-template-columns: 1fr 1fr; row-gap: 12px; }
 }
+
+/* Блок приглашения (?ref=…): карточка на всю ширину, акцентная рамка —
+   человек пришёл по чужой ссылке, это должно быть видно сразу. */
+.ref-card {
+  position: relative;
+  padding: 30px 26px 26px;
+  border: 1px solid rgba(62, 224, 143, 0.45);
+  border-radius: var(--radius);
+  background: linear-gradient(165deg, #0f2a1d, #0b1712);
+}
+.ref-card h2 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 34px); letter-spacing: -0.4px; }
+.ref-card .sub { margin: 0 0 14px; color: var(--dim); max-width: 640px; }
+.ref-card .sub b { color: var(--accent); }
+.ref-code { margin: 0; color: var(--dim); font-size: 14px; }
+.ref-code code {
+  color: var(--text);
+  background: rgba(62, 224, 143, 0.1);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+.ref-note { margin: 10px 0 0; color: var(--dim); font-size: 13px; }
+.ref-card .btn.block { max-width: 420px; }

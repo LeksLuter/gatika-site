@@ -54,6 +54,24 @@
     </div>
   </section>
 
+
+  <!-- Приглашение друга (?ref=<код>). Код кладём в буфер обмена по нажатию:
+       приложение при первом запуске читает его само и начисляет минуты обоим
+       (docs/MONETIZATION.md §14). -->
+  <section id="ref-invite" class="section" hidden>
+    <div class="ref-card">
+      <span class="badge">приглашение</span>
+      <h2>Тебя пригласил друг</h2>
+      <p class="sub">Установи Gatika по этой ссылке: тебе начислят <b>+15 минут</b> браузера,
+        а другу <b>+30</b> — как только приложение выйдет на связь.</p>
+      <p class="ref-code">Код приглашения: <code id="ref-code">—</code></p>
+      <a class="btn block" id="ref-download" href="#download">Скопировать код и скачать</a>
+      <p class="ref-note" id="ref-hint" hidden>Код скопирован. После установки просто открой
+        Gatika — минуты начислятся сами, вводить ничего не нужно.</p>
+      <p class="ref-note"><a id="ref-open" href="#" hidden>Приложение уже стоит? Открыть Gatika</a></p>
+    </div>
+  </section>
+
   <section id="flows" class="section">
     <h2>Потоки</h2>
     <p class="sub">Два стандартных потока входят в бесплатную часть. Ещё два открываются в расширенном доступе.</p>
@@ -231,6 +249,48 @@
     });
   });
 })();
+
+  // Приглашение: `?ref=<код>` на лендинге. Код запоминаем, чтобы он не потерялся
+  // при переходах по странице, и кладём в буфер по кнопке — приложение прочитает
+  // его при первом запуске (§14).
+  (function () {
+    var REF_KEY = 'gatika_ref';
+    var CODE = /^[0-9a-f]{64}$/;
+    var m = /[?&]ref=([0-9a-fA-F]{64})/.exec(location.search);
+    var code = m ? m[1].toLowerCase() : null;
+    if (code) {
+      try { localStorage.setItem(REF_KEY, code); } catch (e) {}
+    } else {
+      try { code = localStorage.getItem(REF_KEY); } catch (e) {}
+    }
+    if (!code || !CODE.test(code)) return;
+
+    var box = document.getElementById('ref-invite');
+    if (!box) return;
+    box.hidden = false;
+    document.getElementById('ref-code').textContent = code.slice(0, 8) + '…' + code.slice(-4);
+
+    var open = document.getElementById('ref-open');
+    open.href = 'gatika://ref/' + code;
+    open.hidden = false;
+
+    document.getElementById('ref-download').addEventListener('click', function () {
+      var link = 'https://gatika.ru/?ref=' + code;
+      var hint = document.getElementById('ref-hint');
+      var done = function () { if (hint) hint.hidden = false; };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(done, done);
+      } else {
+        var area = document.createElement('textarea');
+        area.value = link;
+        document.body.appendChild(area);
+        area.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(area);
+        done();
+      }
+    });
+  })();
 </script>
 </body>
 </html>
