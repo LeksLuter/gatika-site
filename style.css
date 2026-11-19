@@ -302,3 +302,16 @@ footer {
 }
 .ref-note { margin: 10px 0 0; color: var(--dim); font-size: 13px; }
 .ref-card .btn.block { max-width: 420px; }
+/* Скриншоты приложения: вертикальные карточки одинаковой высоты. */
+.tile.shot { padding: 10px; }
+.tile.shot img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1080 / 2408;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 14px;
+  border: 1px solid rgba(53, 224, 125, 0.25);
+}
+.tile.shot h3 { margin: 12px 4px 6px; }
+.tile.shot p { margin: 0 4px 4px; }
